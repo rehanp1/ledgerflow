@@ -12,5 +12,16 @@ export const createWallet = async (input: CreateWalletInput): Promise<Wallet> =>
     const result = await pool.query(query, [userId, currency]);
 
     return result.rows[0];
+}
 
+export const findWalletById = async (walletId: string): Promise<Wallet | null> => {
+    const query = `
+        SELECT id, user_id AS "userId", currency, balance, status, created_at AS "createdAt", updated_at AS "updatedAt"
+        FROM wallets
+        WHERE id = $1
+    `;
+
+    const result = await pool.query(query, [walletId]);
+
+    return result.rows[0] || null;
 }
