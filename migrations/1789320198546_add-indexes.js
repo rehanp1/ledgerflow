@@ -10,12 +10,12 @@ export const shorthands = undefined;
  */
 export const up = (pgm) => {
     pgm.sql(`
-        CREATE INDEX idx_wallets_user_id ON wallets(user_id);
-        CREATE INDEX idx_transactions_source_wallet ON transactions(source_wallet_id);
-        CREATE INDEX idx_transactions_destination_wallet ON transactions(destination_wallet_id);
-        CREATE INDEX idx_transactions_created_at ON transactions(created_at DESC);
-        CREATE INDEX idx_ledger_entries_wallet_id ON ledger_entries(wallet_id);
-        CREATE INDEX idx_ledger_entries_transaction_id ON ledger_entries(transaction_id);
+        CREATE INDEX IF NOT EXISTS idx_wallets_user_id ON wallets(user_id);
+        CREATE INDEX IF NOT EXISTS idx_transactions_source_wallet ON transactions(source_wallet_id);
+        CREATE INDEX IF NOT EXISTS idx_transactions_destination_wallet ON transactions(destination_wallet_id);
+        CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_ledger_entries_wallet_id ON ledger_entries(wallet_id);
+        CREATE INDEX IF NOT EXISTS idx_ledger_entries_transaction_id ON ledger_entries(transaction_id);
     `)
 };
 
