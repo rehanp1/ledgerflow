@@ -14,7 +14,15 @@ export const createWallet = async (req: Request, res: Response): Promise<void> =
             return;
         }
 
-        const wallet = await walletService.createWallet(parsed.data);
+        if (!req.user) {
+            res.status(401).json({ message: "Authentication required" });
+            return;
+        }
+
+        const wallet = await walletService.createWallet({
+            userId: req.user.id,
+            currency: parsed.data.currency
+        });
 
         res.status(201).json({
             message: "Wallet created successfully",
