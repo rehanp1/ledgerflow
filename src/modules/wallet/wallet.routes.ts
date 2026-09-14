@@ -4,7 +4,7 @@ import * as walletController from './wallet.controller';
 const router = Router();
 
 router.post("/", walletController.createWallet);
-// router.get("/wallets/:walletId")
+router.get("/:walletId", walletController.getWalletById);
 // router.get("/wallets/:walletId/balance")
 
 // router.post("/wallets/:walletId/deposit")

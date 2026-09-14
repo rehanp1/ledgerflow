@@ -17,3 +17,13 @@ export const createWallet = async (input: CreateWalletInput): Promise<Wallet> =>
         currency
     });
 };
+
+export const getWalletById = async (walletId: string): Promise<Wallet> => {
+    const wallet = await walletRepository.findWalletById(walletId);
+
+    if (!wallet) {
+        throw new Error(`Wallet with ID ${walletId} not found`);
+    }
+
+    return wallet;
+}
