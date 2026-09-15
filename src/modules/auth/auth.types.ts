@@ -19,4 +19,13 @@ export interface CreateRefreshTokenInput {
   expiresAt: Date;
 }
 
+export interface RefreshToken {
+    id: string;
+    userId: string;
+    tokenHash: string;
+    createdAt: string;
+    expiresAt: Date;
+    revokedAt: Date | null;
+}
+
 
