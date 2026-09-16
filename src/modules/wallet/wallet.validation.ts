@@ -8,3 +8,14 @@ export const createWalletSchema = z.object({
 });
 
 export type CreateWalletRequest = z.infer<typeof createWalletSchema>;
+
+export const depositSchema = z.object({
+  amount: z
+    .string()
+    .regex(/^\d+(\.\d{1,2})?$/, {
+      message: "Amount must be a valid decimal"
+    })
+    .refine((value) => Number(value) > 0, {
+      message: "Amount must be greater than zero"
+    })
+})

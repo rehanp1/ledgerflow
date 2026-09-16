@@ -12,3 +12,10 @@ export interface CreateWalletInput {
     userId: string;
     currency: string;
 }
+
+export interface DepositInput {
+  walletId: string;
+  userId: string;
+  amount: string;
+  idempotencyKey: string;
+}
