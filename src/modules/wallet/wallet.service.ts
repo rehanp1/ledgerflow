@@ -44,8 +44,6 @@ export const deposit = async (input: DepositInput): Promise<Transaction> => {
             throw new Error("WALLET_NOT_ACTIVE");
         }
 
-        await walletRepository.incrementWalletBalance(input.walletId, input.amount, client)
-
         const transaction = await transactionRepository.createTransaction(
             {
                 idempotencyKey: input.idempotencyKey,
@@ -56,6 +54,28 @@ export const deposit = async (input: DepositInput): Promise<Transaction> => {
             client
         );
 
+        //Idempotency key already exists
+        if (!transaction) {
+            const existingTransaction = await transactionRepository.findTransactionByIdempotencyKey(input.idempotencyKey, client);
+
+            if (!existingTransaction) {
+                throw new Error("IDEMPOTENCY_LOOKUP_FAILED")
+            }
+
+            // Prevent reuse of the same key with different details
+            if (
+                existingTransaction.type !== "DEPOSIT" ||
+                existingTransaction.amount !== input.amount ||
+                existingTransaction.currency !== wallet.currency
+            ) {
+                throw new Error("IDEMPOTENCY_KEY_REUSED")
+            }
+
+            return existingTransaction;
+        }
+
+        await walletRepository.incrementWalletBalance(input.walletId, input.amount, client)
+
         await ledgerRepository.createLedgerEntry(
             {
                 transactionId: transaction.id,
@@ -65,6 +85,8 @@ export const deposit = async (input: DepositInput): Promise<Transaction> => {
             },
             client
         );
+
+        await transactionRepository.updateTransactionStatus(transaction.id, "COMPLETED", client)
 
         return transaction;
 
