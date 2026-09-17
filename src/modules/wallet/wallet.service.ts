@@ -1,4 +1,4 @@
-import type { CreateWalletInput, DepositInput, Wallet } from "./wallet.types";
+import type { CreateWalletInput, DepositInput, Wallet, WithdrawInput } from "./wallet.types";
 import { Transaction } from "../transaction/transaction.types";
 import { withTransaction } from "../../database/transaction";
 import * as walletRepository from "./wallet.repository";
@@ -88,7 +88,81 @@ export const deposit = async (input: DepositInput): Promise<Transaction> => {
 
         await transactionRepository.updateTransactionStatus(transaction.id, "COMPLETED", client)
 
-        return transaction;
+        return {
+            ...transaction,
+            status: "COMPLETED"
+        };
 
     })
 }
+
+export const withdraw = async (input: WithdrawInput): Promise<Transaction> => {
+    return withTransaction(async (client) => {
+        const wallet = await walletRepository.findWalletForUpdate(input.walletId, input.userId, client)
+
+        if (!wallet) {
+            throw new Error("WALLET_NOT_FOUND");
+        }
+
+        if (wallet.status !== "ACTIVE") {
+            throw new Error("WALLET_NOT_ACTIVE");
+        }
+
+        const transaction = await transactionRepository.createTransaction(
+            {
+                idempotencyKey: input.idempotencyKey,
+                type: "WITHDRAWAL",
+                amount: input.amount,
+                currency: wallet.currency,
+                sourceWalletId: input.walletId
+            },
+            client
+        );
+
+        //Idempotency key already exists
+        if (!transaction) {
+            const existingTransaction = await transactionRepository.findTransactionByIdempotencyKey(input.idempotencyKey, client);
+
+            if (!existingTransaction) {
+                throw new Error("IDEMPOTENCY_LOOKUP_FAILED")
+            }
+
+            // Prevent reuse of the same key with different details
+            if (
+                existingTransaction.type !== "WITHDRAWAL" ||
+                existingTransaction.amount !== input.amount ||
+                existingTransaction.currency !== wallet.currency ||
+                existingTransaction.sourceWalletId !== input.walletId
+            ) {
+                throw new Error("IDEMPOTENCY_KEY_REUSED")
+            }
+
+            return existingTransaction;
+        }
+
+        const balanceUpdated =  await walletRepository.decrementWalletBalance(input.walletId, input.amount, client)
+
+        if (!balanceUpdated) {
+            throw new Error("INSUFFICIENT_BALANCE")
+        }
+
+        await ledgerRepository.createLedgerEntry(
+            {
+                transactionId: transaction.id,
+                walletId: input.walletId,
+                entryType: "DEBIT",
+                amount: input.amount
+            },
+            client
+        );
+
+        await transactionRepository.updateTransactionStatus(transaction.id, "COMPLETED", client)
+
+        return {
+            ...transaction,
+            status: "COMPLETED"
+        };
+
+    })
+}
+

@@ -19,3 +19,5 @@ export interface DepositInput {
   amount: string;
   idempotencyKey: string;
 }
+
+export interface WithdrawInput extends DepositInput {}
