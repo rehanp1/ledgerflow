@@ -12,6 +12,6 @@ router.get("/:walletId", walletController.getWalletById);
 
 router.post("/:walletId/deposit", walletController.deposit)
 router.post("/:walletId/withdraw", walletController.withdraw)
-// router.post("/transfer")
+router.post("/transfer", walletController.transfer)
 
 export default router;

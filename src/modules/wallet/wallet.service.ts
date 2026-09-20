@@ -1,9 +1,10 @@
-import type { CreateWalletInput, DepositInput, Wallet, WithdrawInput } from "./wallet.types";
+import type { CreateWalletInput, DepositInput, TransferInput, Wallet, WithdrawInput } from "./wallet.types";
 import { Transaction } from "../transaction/transaction.types";
 import { withTransaction } from "../../database/transaction";
 import * as walletRepository from "./wallet.repository";
 import * as transactionRepository from "../transaction/transaction.repository"
 import * as ledgerRepository from "../ledger/ledger.repository";
+import { input } from "zod";
 
 // Later, we can move supported currencies into configuration/database if needed
 const SUPPORTED_CURRENCIES = new Set(["USD", "EUR", "GBP", "JPY", "AUD", "INR"]);
@@ -163,6 +164,113 @@ export const withdraw = async (input: WithdrawInput): Promise<Transaction> => {
             status: "COMPLETED"
         };
 
+    })
+}
+
+export const transfer = async (input: TransferInput): Promise<Transaction> => {
+    if (input.sourceWalletId === input.destinationWalletId) {
+        throw new Error("SAME_WALLET_TRANSFER");
+    }
+
+    return withTransaction(async (client) => {
+        const wallets = await walletRepository.findWalletsForUpdate(
+            input.sourceWalletId,
+            input.destinationWalletId,
+            client
+        )
+
+        if (wallets.length !== 2) {
+            throw new Error("WALLET_NOT_FOUND");
+        }
+
+        const sourceWallet = wallets.find((wallet) => wallet.id === input.sourceWalletId);
+        const destinationWallet = wallets.find((wallet) => wallet.id === input.destinationWalletId);
+
+        if (!sourceWallet || !destinationWallet) {
+            throw new Error("WALLET_NOT_FOUND");
+        }
+
+        if (sourceWallet.userId !== input.userId) {
+            throw new Error("WALLET_ACCESS_DENIED");
+        }
+
+        if (
+            sourceWallet.status !== "ACTIVE" ||
+            destinationWallet.status !== "ACTIVE"
+        ) {
+            throw new Error("WALLET_NOT_ACTIVE");
+        }
+
+        if (sourceWallet.currency !== destinationWallet.currency) {
+            throw new Error("CURRENCY_MISMATCH");
+        }
+
+        const transaction = await transactionRepository.createTransaction(
+            {
+                idempotencyKey: input.idempotencyKey,
+                type: "TRANSFER",
+                amount: input.amount,
+                currency: sourceWallet.currency,
+                sourceWalletId: input.sourceWalletId,
+                destinationWalletId: input.destinationWalletId
+            },
+            client
+        )
+
+        if (!transaction) {
+            const existingTransaction = await transactionRepository.findTransactionByIdempotencyKey(input.idempotencyKey, client)
+
+            if (!existingTransaction) {
+                throw new Error("IDEMPOTENCY_LOOKUP_FAILED");
+            }
+
+            if (
+                existingTransaction.type !== "TRANSFER" ||
+                existingTransaction.amount !== input.amount ||
+                existingTransaction.currency !== sourceWallet.currency ||
+                existingTransaction.sourceWalletId !== input.sourceWalletId ||
+                existingTransaction.destinationWalletId !== input.destinationWalletId
+            ) {
+                throw new Error("IDEMPOTENCY_KEY_REUSED");
+            }
+
+            return existingTransaction;
+        }
+
+        const debited = await walletRepository.decrementWalletBalance(input.sourceWalletId, input.amount, client);
+
+        if (!debited) {
+            throw new Error("INSUFFICIENT_BALANCE");
+        }
+
+        await walletRepository.incrementWalletBalance(input.destinationWalletId, input.amount, client);
+
+        await ledgerRepository.createLedgerEntry(
+            {
+                transactionId: transaction.id,
+                walletId: input.sourceWalletId,
+                entryType: "DEBIT",
+                amount: input.amount
+            },
+            client
+        );
+
+        await ledgerRepository.createLedgerEntry(
+            {
+                transactionId: transaction.id,
+                walletId: input.destinationWalletId,
+                entryType: "CREDIT",
+                amount: input.amount
+            },
+            client
+        );
+
+        await transactionRepository.updateTransactionStatus(transaction.id, "COMPLETED", client);
+
+        return {
+            ...transaction,
+            status: "COMPLETED"
+        }
     })
 }
 

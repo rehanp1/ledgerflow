@@ -62,3 +62,19 @@ export const decrementWalletBalance = async (walletId: string, amount: string, c
     return result.rowCount === 1;
 }
 
+export const findWalletsForUpdate = async (walletId1: string, walletId2: string, client: PoolClient | Pool = pool): Promise<Wallet[]> => {
+    const walletIds = [walletId1, walletId2].sort();
+
+    const query = `
+        SELECT id, user_id AS "userId", currency, balance, status
+        FROM wallets
+        WHERE id = ANY($1::uuid[])
+        ORDER BY id
+        FOR UPDATE;
+    `
+
+    const result = await client.query(query, [walletIds]);
+
+    return result.rows;
+}
+

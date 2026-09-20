@@ -21,3 +21,11 @@ export interface DepositInput {
 }
 
 export interface WithdrawInput extends DepositInput {}
+
+export interface TransferInput {
+    sourceWalletId: string;
+    destinationWalletId: string;
+    userId: string;
+    amount: string;
+    idempotencyKey: string;
+}
