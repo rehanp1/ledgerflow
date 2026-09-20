@@ -4,7 +4,6 @@ import { withTransaction } from "../../database/transaction";
 import * as walletRepository from "./wallet.repository";
 import * as transactionRepository from "../transaction/transaction.repository"
 import * as ledgerRepository from "../ledger/ledger.repository";
-import { input } from "zod";
 
 // Later, we can move supported currencies into configuration/database if needed
 const SUPPORTED_CURRENCIES = new Set(["USD", "EUR", "GBP", "JPY", "AUD", "INR"]);
@@ -267,7 +266,7 @@ export const transfer = async (input: TransferInput): Promise<Transaction> => {
             client
         );
 
-        await transactionRepository.updateTransactionStatus(transaction.id, "COMPLETED", client);
+        await transactionRepository.updateTransactionStatus(transaction.id, "COMPLETED", client)
 
         return {
             ...transaction,
@@ -275,4 +274,7 @@ export const transfer = async (input: TransferInput): Promise<Transaction> => {
         }
     })
 }
+
+
+
 
