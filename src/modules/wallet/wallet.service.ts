@@ -50,7 +50,8 @@ export const deposit = async (input: DepositInput): Promise<Transaction> => {
                 idempotencyKey: input.idempotencyKey,
                 type: "DEPOSIT",
                 amount: input.amount,
-                currency: wallet.currency
+                currency: wallet.currency,
+                sourceWalletId: input.walletId
             },
             client
         );
@@ -67,7 +68,8 @@ export const deposit = async (input: DepositInput): Promise<Transaction> => {
             if (
                 existingTransaction.type !== "DEPOSIT" ||
                 existingTransaction.amount !== input.amount ||
-                existingTransaction.currency !== wallet.currency
+                existingTransaction.currency !== wallet.currency ||
+                existingTransaction.sourceWalletId !== input.walletId
             ) {
                 throw new Error("IDEMPOTENCY_KEY_REUSED")
             }
@@ -82,7 +84,7 @@ export const deposit = async (input: DepositInput): Promise<Transaction> => {
                 transactionId: transaction.id,
                 walletId: input.walletId,
                 entryType: "CREDIT",
-                amount: input.amount
+                amount: input.amount,
             },
             client
         );

@@ -19,3 +19,19 @@ export interface CreateTransactionInput {
     sourceWalletId?: string;
     destinationWalletId?: string;
 }
+
+export interface FindTransactionsInput {
+    userId: string;
+    limit: number;
+    offset: number;
+    type?: string | undefined;
+    status?: string | undefined;
+}
+
+export interface GetTransactionsInput {
+  userId: string;
+  page: number;
+  limit: number;
+  type?: string | undefined;
+  status?: string | undefined;
+}
