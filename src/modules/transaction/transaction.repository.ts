@@ -1,5 +1,5 @@
 import type { PoolClient, Pool } from "pg";
-import { CreateTransactionInput, Transaction } from "./transaction.types";
+import { CreateTransactionInput, FindTransactionsInput, Transaction } from "./transaction.types";
 import { pool } from "../../database/pool";
 
 export const createTransaction = async (input: CreateTransactionInput, client: PoolClient | Pool = pool): Promise<Transaction | null> => {
@@ -60,5 +60,57 @@ export const updateTransactionStatus = async (transactionId: string, status: "CO
     `
 
     await client.query(query, [status, transactionId])
+}
+
+export const findUserTransactions = async (input: FindTransactionsInput): Promise<Transaction[]> => {
+    const { userId, limit, offset, type, status } = input;
+
+    const values: unknown[] = [ userId ];
+    const conditions: string[] = [
+        `(source_wallet.user_id = $1 OR destination_wallet.user_id = $1)`,
+    ]
+
+    if (type) {
+        values.push(type)
+        conditions.push(`t.type = $${values.length}`);
+    }
+
+    if (status) {
+        values.push(status);
+        conditions.push(`t.status = $${values.length}`);
+    }
+
+    values.push(limit);
+    const limitParam = values.length;
+
+    values.push(offset);
+    const offsetParam = values.length;
+
+    const query = `
+        SELECT
+            t.id,
+            t.idempotency_key AS "idempotencyKey",
+            t.type,
+            t.status,
+            t.amount,
+            t.currency,
+            t.source_wallet_id AS "sourceWalletId",
+            t.destination_wallet_id AS "destinationWalletId",
+            t.created_at AS "createdAt",
+            t.updated_at AS "updatedAt"
+        FROM transactions t
+        LEFT JOIN wallets source_wallet 
+            ON source_wallet.id = t.source_wallet_id
+        LEFT JOIN wallets destination_wallet
+            ON destination_wallet.id = t.destination_wallet_id
+        WHERE ${conditions.join(" AND ")}
+        ORDER BY t.created_at DESC
+        LIMIT $${limitParam}
+        OFFSET $${offsetParam}
+    `
+
+    const result = await pool.query(query, values)
+
+    return result.rows
 }
 

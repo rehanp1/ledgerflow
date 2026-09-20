@@ -2,6 +2,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import walletRoutes from './modules/wallet/wallet.routes';
 import authRoutes from "./modules/auth/auth.routes"
+import transationRoutes from "./modules/transaction/transaction.routes"
 
 const app = express();
 
@@ -17,5 +18,6 @@ app.get("/health", (_req, res) => {
 
 app.use("/api/v1/auth", authRoutes)
 app.use("/api/v1/wallets", walletRoutes);
+app.use("/api/v1/transactions", transationRoutes);
 
 export default app;

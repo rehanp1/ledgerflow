@@ -4,7 +4,6 @@ import { withTransaction } from "../../database/transaction";
 import * as walletRepository from "./wallet.repository";
 import * as transactionRepository from "../transaction/transaction.repository"
 import * as ledgerRepository from "../ledger/ledger.repository";
-import { input } from "zod";
 
 // Later, we can move supported currencies into configuration/database if needed
 const SUPPORTED_CURRENCIES = new Set(["USD", "EUR", "GBP", "JPY", "AUD", "INR"]);
@@ -50,7 +49,8 @@ export const deposit = async (input: DepositInput): Promise<Transaction> => {
                 idempotencyKey: input.idempotencyKey,
                 type: "DEPOSIT",
                 amount: input.amount,
-                currency: wallet.currency
+                currency: wallet.currency,
+                sourceWalletId: input.walletId
             },
             client
         );
@@ -67,7 +67,8 @@ export const deposit = async (input: DepositInput): Promise<Transaction> => {
             if (
                 existingTransaction.type !== "DEPOSIT" ||
                 existingTransaction.amount !== input.amount ||
-                existingTransaction.currency !== wallet.currency
+                existingTransaction.currency !== wallet.currency ||
+                existingTransaction.sourceWalletId !== input.walletId
             ) {
                 throw new Error("IDEMPOTENCY_KEY_REUSED")
             }
@@ -82,7 +83,7 @@ export const deposit = async (input: DepositInput): Promise<Transaction> => {
                 transactionId: transaction.id,
                 walletId: input.walletId,
                 entryType: "CREDIT",
-                amount: input.amount
+                amount: input.amount,
             },
             client
         );
@@ -265,7 +266,7 @@ export const transfer = async (input: TransferInput): Promise<Transaction> => {
             client
         );
 
-        await transactionRepository.updateTransactionStatus(transaction.id, "COMPLETED", client);
+        await transactionRepository.updateTransactionStatus(transaction.id, "COMPLETED", client)
 
         return {
             ...transaction,
@@ -273,4 +274,7 @@ export const transfer = async (input: TransferInput): Promise<Transaction> => {
         }
     })
 }
+
+
+
 
