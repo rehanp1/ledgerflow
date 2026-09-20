@@ -1,6 +1,6 @@
 import { pool } from "../../database/pool";
 import type { CreateWalletInput, Wallet } from "./wallet.types";
-import type { PoolClient } from "pg";
+import type { Pool, PoolClient } from "pg";
 
 export const createWallet = async (input: CreateWalletInput): Promise<Wallet> => {
     const { userId, currency } = input;
@@ -49,3 +49,32 @@ export const incrementWalletBalance = async (walletId: string, amount: string, c
 
     await client.query(query, [amount, walletId])
 }
+
+export const decrementWalletBalance = async (walletId: string, amount: string, client: PoolClient | Pool = pool): Promise<boolean> => {
+    const query = `
+        UPDATE wallets
+        SET balance = balance - $1, updated_at = NOW()
+        WHERE id = $2 AND balance >= $1
+    `
+
+    const result = await client.query(query, [amount, walletId])
+
+    return result.rowCount === 1;
+}
+
+export const findWalletsForUpdate = async (walletId1: string, walletId2: string, client: PoolClient | Pool = pool): Promise<Wallet[]> => {
+    const walletIds = [walletId1, walletId2].sort();
+
+    const query = `
+        SELECT id, user_id AS "userId", currency, balance, status
+        FROM wallets
+        WHERE id = ANY($1::uuid[])
+        ORDER BY id
+        FOR UPDATE;
+    `
+
+    const result = await client.query(query, [walletIds]);
+
+    return result.rows;
+}
+
