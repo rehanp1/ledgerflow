@@ -16,7 +16,7 @@ export const getUserTransactions = async (req: Request, res: Response): Promise<
         const typeFilter = typeof type === "string" ? type : undefined;
         const statusFilter = typeof status === "string" ? status : undefined;
 
-        const transactions = await transactionService.getUserTransactions({
+        const result = await transactionService.getUserTransactions({
             userId: req.user.id,
             page: pageNum,
             limit: limitNum,
@@ -26,12 +26,8 @@ export const getUserTransactions = async (req: Request, res: Response): Promise<
 
         res.status(200).json({
             message: "Transactions fetched successfully",
-            data: transactions,
-            paginations: {
-                page: pageNum,
-                limit: limitNum,
-                count: transactions.length
-            }
+            data: result.transactions,
+            paginations: result.pagination
         })
 
         return;
