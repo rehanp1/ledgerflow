@@ -114,3 +114,34 @@ export const findUserTransactions = async (input: FindTransactionsInput): Promis
     return result.rows
 }
 
+export const countUserTransactions = async (userId: string, type?: string, status?: string): Promise<number> => {
+    const values: unknown[] = [ userId ];
+    const conditions: string[] = [
+        `(source_wallet.user_id = $1 OR destination_wallet.user_id = $1)`,
+    ]
+
+    if (type) {
+        values.push(type)
+        conditions.push(`t.type = $${values.length}`);
+    }
+
+    if (status) {
+        values.push(status);
+        conditions.push(`t.status = $${values.length}`);
+    }
+
+    const query = `
+        SELECT COUNT(*)::int AS count
+        FROM transactions t
+        LEFT JOIN wallets source_wallet
+            ON source_wallet.id = t.source_wallet_id
+        LEFT JOIN wallets destination_wallet
+            ON destination_wallet.id = t.destination_wallet_id
+        WHERE ${conditions.join(" AND ")}
+    `
+
+    const result = await pool.query(query, values)
+
+    return result.rows[0].count as number;
+}
+
